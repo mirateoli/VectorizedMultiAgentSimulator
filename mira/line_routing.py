@@ -1,18 +1,16 @@
+import torch
+from torch import Tensor
+
 from torchrl.envs.libs.vmas import VmasEnv
+from torchrl.envs import RewardSum, TransformedEnv
 from torchrl.envs.utils import check_env_specs
 
-from tensordict import TensorDict
-from tensordict.nn import TensorDictModule
-from tensordict.nn.distributions import NormalParamExtractor
 
 from vmas.simulator.scenario import BaseScenario
 
 import typing
 from abc import ABC, abstractmethod
 from typing import List
-
-import torch
-from torch import Tensor
 
 from vmas.simulator.utils import Color, ScenarioUtils
 
@@ -27,6 +25,7 @@ from vmas.simulator.utils import (
 
 if typing.TYPE_CHECKING:
     from vmas.simulator.rendering import Geom
+
 
 class Scenario(BaseScenario):
     def make_world(self, batch_dim: int, device: torch.device, **kwargs) -> World:        
@@ -126,7 +125,10 @@ env = VmasEnv(
 # print("reward_keys:", env.reward_keys)
 # print("done_keys:", env.done_keys)
 
-
+env = TransformedEnv(
+    env,
+    RewardSum(in_keys=[env.reward_key], out_keys=[("agents", "episode_reward")]),
+)
 
 check_env_specs(env)
      
@@ -136,9 +138,10 @@ rollout = env.rollout(n_rollout_steps)
 print("rollout of three steps:", rollout)
 print("Shape of the rollout TensorDict:", rollout.batch_size)
 
+
 with torch.no_grad():
    env.rollout(
-       max_steps=1000,
+       max_steps=100,
        callback=lambda env, _: env.render(),
        auto_cast_to_device=True,
        break_when_any_done=False,
